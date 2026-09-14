@@ -1,0 +1,5 @@
+.direnv
+docs
+vendor
+.env
+.idea
