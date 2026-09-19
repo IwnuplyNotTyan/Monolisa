@@ -2,36 +2,24 @@ package render
 
 import (
 	"bufio"
+	"context"
 	"image"
 	"image/draw"
 	"image/gif"
+	"io"
 	"os"
-	"os/signal"
 	"time"
-
-	"golang.org/x/term"
 )
 
-func Gif(gifSource string) {
-	f, err := os.Open(gifSource)
-	if err != nil {
-		panic(err)
-	}
-	g, err := gif.DecodeAll(f)
-	f.Close()
-	if err != nil {
-		panic(err)
-	}
+type Size struct{ Cols, Rows int }
 
-	cols, rows, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil {
-		panic(err)
-	}
-
+// composite разворачивает GIF в полные RGBA-кадры (один раз).
+func composite(g *gif.GIF) []*image.RGBA {
 	canvas := image.NewRGBA(image.Rect(0, 0, g.Config.Width, g.Config.Height))
 	draw.Draw(canvas, canvas.Bounds(), image.Black, image.Point{}, draw.Src)
 	var snap []uint8
-	cells := make([][]Cell, len(g.Image))
+	frames := make([]*image.RGBA, len(g.Image))
+
 	for i, p := range g.Image {
 		if i > 0 {
 			switch g.Disposal[i-1] {
@@ -45,21 +33,49 @@ func Gif(gifSource string) {
 			snap = append(snap[:0], canvas.Pix...)
 		}
 		draw.Draw(canvas, p.Bounds(), p, p.Bounds().Min, draw.Over)
-		cells[i] = ToCells(canvas, cols, rows)
-	}
 
-	n := len(cells)
-	steps := make([]string, n)
+		cp := image.NewRGBA(canvas.Bounds())
+		copy(cp.Pix, canvas.Pix)
+		frames[i] = cp
+	}
+	return frames
+}
+
+// build считает дифф-строки под конкретный размер терминала.
+func build(frames []*image.RGBA, sz Size) (steps []string, loop string) {
+	n := len(frames)
+	cells := make([][]Cell, n)
+	for i, f := range frames {
+		cells[i] = ToCells(f, sz.Cols, sz.Rows)
+	}
+	steps = make([]string, n)
 	for i := range cells {
 		var prev []Cell
 		if i > 0 {
 			prev = cells[i-1]
 		}
-		steps[i] = Diff(prev, cells[i], cols)
+		steps[i] = Diff(prev, cells[i], sz.Cols)
 	}
-	loop := Diff(cells[n-1], cells[0], cols)
+	loop = Diff(cells[n-1], cells[0], sz.Cols)
+	return
+}
 
-	out := bufio.NewWriterSize(os.Stdout, 1<<20)
+// Gif рисует анимацию. resize может быть nil (локальный запуск).
+func Gif(ctx context.Context, w io.Writer, gifSource string, size Size, resize <-chan Size) error {
+	f, err := os.Open(gifSource)
+	if err != nil {
+		return err
+	}
+	g, err := gif.DecodeAll(f)
+	f.Close()
+	if err != nil {
+		return err
+	}
+
+	frames := composite(g)
+	steps, loop := build(frames, size)
+
+	out := bufio.NewWriterSize(w, 1<<20)
 	out.WriteString("\033[?1049h\033[?25l\033[2J")
 	out.Flush()
 	defer func() {
@@ -67,27 +83,39 @@ func Gif(gifSource string) {
 		out.Flush()
 	}()
 
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
+	first := true
+	for i := 0; ; {
+		s := steps[i]
+		if i == 0 && !first {
+			s = loop
+		}
+		out.WriteString(s)
+		out.Flush()
 
-	for first := true; ; first = false {
-		for i := range cells {
-			s := steps[i]
-			if i == 0 && !first {
-				s = loop
-			}
-			out.WriteString(s)
-			out.Flush()
+		d := time.Duration(g.Delay[i]) * 10 * time.Millisecond
+		if d < 20*time.Millisecond {
+			d = 80 * time.Millisecond
+		}
 
-			d := time.Duration(g.Delay[i]) * 10 * time.Millisecond
-			if d < 20*time.Millisecond {
-				d = 80 * time.Millisecond
+		select {
+		case <-ctx.Done():
+			return nil
+		case sz := <-resize:
+			if sz.Cols <= 0 || sz.Rows <= 0 || sz == size {
+				continue
 			}
-			select {
-			case <-sig:
-				return
-			case <-time.After(d):
-			}
+			size = sz
+			steps, loop = build(frames, size)
+			out.WriteString("\033[2J\033[H") // очистить экран
+			// начать с кадра 0 как "первого" — Diff от пустого
+			i, first = 0, true
+			continue
+		case <-time.After(d):
+		}
+
+		i++
+		if i == len(frames) {
+			i, first = 0, false
 		}
 	}
 }
