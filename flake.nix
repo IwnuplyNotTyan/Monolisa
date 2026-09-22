@@ -21,7 +21,7 @@
 	  version = "0.1.0";
         in
         {
-          default = pkgs.buildGoModule {
+          default = pkgs.buildGo127Module {
             pname = "monolisa";
             inherit version;
             src = self;
@@ -32,12 +32,12 @@
 	      "-w"
             ];
 
-            vendorHash = "sha256-GdV+7ccktqbsDwfNLBU8fEsOjtHXBKiqjn7m1lMFvUU=";
+            vendorHash = "sha256-MEdSLAuG6es8mkKjsPdiNNSfA/6ojXR5NWynxkofJbQ=";
 
             meta = {
               description = "Screensaver without love :3";
               homepage = "https://github.com/IwnuplyNotTyan/monolisa";
-              mainProgram = "hera";
+              mainProgram = "monolisa";
             };
           };
 	});
@@ -48,7 +48,7 @@
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              go
+              go_1_27
               gotools
               golangci-lint
             ];
