@@ -1,0 +1,8 @@
+.direnv
+docs
+vendor
+.env
+.idea
+/*.gif
+.ssh
+bin

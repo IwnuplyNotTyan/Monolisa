@@ -1,0 +1,6 @@
+services:
+  monolisa:
+    build:
+      context: .
+    ports:
+      - "23234:23234"
