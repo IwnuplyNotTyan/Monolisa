@@ -2,9 +2,15 @@ services:
   monolisa:
     build:
       context: .
-    environment:
-      - MONOLISA_DIR=/app/gif
+    #environment:
+      #- MONOLISA_DIR=/app/gifs
+      #- MONOLISA_PORT=23234
+      #- MONOLISA_HOST=0.0.0.0
+      #- MONOLISA_PASSWORD=${MONOLISA_PASSWORD:-monolisa}
+      #- MONOLISA_AUTHORIZED_KEYS=${MONOLISA_AUTHORIZED_KEYS:-}
+      #- MONOLISA_SSH_KEYS=${MONOLISA_SSH_KEYS:-}
     volumes:
-      - /app/gif:$HOME/files/prjkt/monolisa
+      - $HOME/Pictures:/app/gifs:ro
+      #- ./authorized_keys:/app/authorized_keys:ro
     ports:
       - "23234:23234"

@@ -5,12 +5,12 @@ package remote
 import (
 	"context"
 	"errors"
-	"fmt"
 	"monolisa/render"
 	"monolisa/utils"
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,10 +23,19 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-const (
-	host = "localhost"
-	port = "23234"
+var (
+	host = envDefault("MONOLISA_HOST", "0.0.0.0")
+	port = envDefault("MONOLISA_PORT", "23234")
+
+	password, passEnabled = resolvePassword()
 )
+
+func envDefault(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
 
 //go:embed banner.txt
 var banner string
@@ -85,21 +94,30 @@ func gifMiddleware(next ssh.Handler) ssh.Handler {
 }
 
 func Init() {
-	s, err := wish.NewServer(
+	opts := []ssh.Option{
 		wish.WithAddress(net.JoinHostPort(host, port)),
 		wish.WithHostKeyPath(".ssh/id_ed25519"),
 		wish.WithBannerHandler(func(ctx ssh.Context) string {
-			return fmt.Sprintf(banner, ctx.User())
+			b := strings.ReplaceAll(banner, "%s", ctx.User())
+			if !strings.HasSuffix(b, "\n") {
+				b += "\n"
+			}
+			return b
 		}),
-		wish.WithPasswordAuth(func(ctx ssh.Context, password string) bool {
-			return password == "monolisa"
-		}),
-		wish.WithMiddleware(
-			gifMiddleware,
-			logging.Middleware(),
-			elapsed.Middleware(),
-		),
-	)
+	}
+	auth, err := authOptions()
+	if err != nil {
+		log.Error("Could not start server", "error", err)
+		return
+	}
+	opts = append(opts, auth...)
+	opts = append(opts, wish.WithMiddleware(
+		gifMiddleware,
+		logging.Middleware(),
+		elapsed.Middleware(),
+	))
+
+	s, err := wish.NewServer(opts...)
 	if err != nil {
 		log.Error("Could not start server", "error", err)
 		return

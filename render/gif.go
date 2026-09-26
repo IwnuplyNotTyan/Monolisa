@@ -62,26 +62,41 @@ func build(frames []*image.RGBA, sz Size) (steps []string, loop string) {
 
 // Gif рисует анимацию. resize может быть nil (локальный запуск).
 func Gif(ctx context.Context, w io.Writer, gifSource string, size Size, resize <-chan Size) error {
+	if size.Cols <= 0 || size.Rows <= 0 {
+		size = Size{Cols: 80, Rows: 24}
+	}
 	f, err := os.Open(gifSource)
 	if err != nil {
 		return err
 	}
 	g, err := gif.DecodeAll(f)
-	f.Close()
+	closeErr := f.Close()
 	if err != nil {
 		return err
+	}
+	if closeErr != nil {
+		return closeErr
 	}
 
 	frames := composite(g)
 	steps, loop := build(frames, size)
 
 	out := bufio.NewWriterSize(w, 1<<20)
-	out.WriteString("\033[?1049h\033[?25l\033[2J")
-	out.Flush()
 	defer func() {
-		out.WriteString("\033[?25h\033[?1049l")
-		out.Flush()
+		_, _ = out.WriteString("\033[?25h\033[?1049l")
+		_ = out.Flush()
 	}()
+
+	flush := func(s string) error {
+		if _, err := out.WriteString(s); err != nil {
+			return err
+		}
+		return out.Flush()
+	}
+
+	if err := flush("\033[?1049h\033[?25l\033[2J"); err != nil {
+		return err
+	}
 
 	first := true
 	for i := 0; ; {
@@ -89,8 +104,9 @@ func Gif(ctx context.Context, w io.Writer, gifSource string, size Size, resize <
 		if i == 0 && !first {
 			s = loop
 		}
-		out.WriteString(s)
-		out.Flush()
+		if err := flush(s); err != nil {
+			return err
+		}
 
 		d := time.Duration(g.Delay[i]) * 10 * time.Millisecond
 		if d < 20*time.Millisecond {
@@ -106,7 +122,7 @@ func Gif(ctx context.Context, w io.Writer, gifSource string, size Size, resize <
 			}
 			size = sz
 			steps, loop = build(frames, size)
-			out.WriteString("\033[2J\033[H") // очистить экран
+			_, _ = out.WriteString("\033[2J\033[H") // очистить экран
 			// начать с кадра 0 как "первого" — Diff от пустого
 			i, first = 0, true
 			continue
