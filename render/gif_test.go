@@ -47,7 +47,7 @@ func writeGIF(t *testing.T, g *imagegif.GIF) string {
 		t.Fatalf("create gif: %v", err)
 	}
 	if err := imagegif.EncodeAll(f, g); err != nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatalf("encode gif: %v", err)
 	}
 	if err := f.Close(); err != nil {
@@ -62,7 +62,7 @@ func decodeGIF(t *testing.T, path string) *imagegif.GIF {
 	if err != nil {
 		t.Fatalf("open gif: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	g, err := imagegif.DecodeAll(f)
 	if err != nil {
 		t.Fatalf("decode gif: %v", err)
