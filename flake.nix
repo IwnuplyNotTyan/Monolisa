@@ -13,34 +13,37 @@
         "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
+      version = "0.1.0";
+      mkMonolisa = pkgs: tags: pkgs.buildGo127Module {
+        pname = "monolisa";
+        inherit version;
+        src = self;
+        modules = ./gomod2nix.toml;
+        inherit tags;
+
+        ldflags = [
+          "-s"
+          "-w"
+        ];
+
+        vendorHash = "sha256-MEdSLAuG6es8mkKjsPdiNNSfA/6ojXR5NWynxkofJbQ=";
+
+        meta = {
+          description = "Screensaver without love :3";
+          homepage = "https://github.com/IwnuplyNotTyan/monolisa";
+          mainProgram = "monolisa";
+        };
+      };
     in
     {
       packages = forAllSystems (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-	  version = "0.1.0";
         in
         {
-          default = pkgs.buildGo127Module {
-            pname = "monolisa";
-            inherit version;
-            src = self;
-            modules = ./gomod2nix.toml;
-
-            ldflags = [
-	      "-s"
-	      "-w"
-            ];
-
-            vendorHash = "sha256-MEdSLAuG6es8mkKjsPdiNNSfA/6ojXR5NWynxkofJbQ=";
-
-            meta = {
-              description = "Screensaver without love :3";
-              homepage = "https://github.com/IwnuplyNotTyan/monolisa";
-              mainProgram = "monolisa";
-            };
-          };
-	});
+          default = mkMonolisa pkgs [ ];
+          ssh = mkMonolisa pkgs [ "ssh" ];
+        });
       devShells = forAllSystems (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};

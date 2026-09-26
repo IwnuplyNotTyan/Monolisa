@@ -49,7 +49,8 @@ MONOLISA_DIR=$HOME/Pictures monolisa
 
 ### ❄️ Nix
 ``` bash
-nix run github:iwnuplynottyan/monolisa
+nix run github:iwnuplynottyan/monolisa        # plain build
+nix run github:iwnuplynottyan/monolisa#ssh    # build with SSH server (-tags ssh)
 ```
 
 ### 🐋 Docker
@@ -65,6 +66,8 @@ nix run github:iwnuplynottyan/monolisa
 git clone https://github.com/IwnuplyNotTyan/monolisa && cd monolisa
 go mod download
 go build -o ./bin/monolisa ./cmd/monolisa/main.go
+# or with the SSH server
+go build -tags ssh -o ./bin/monolisa ./cmd/monolisa/main.go
 ```
 
 
