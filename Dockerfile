@@ -16,6 +16,8 @@ WORKDIR /app
 
 COPY --from=builder /app/bin/monolisa ./monolisa
 
+ENV MONOLISA_DIR /app/gifs/
+
 EXPOSE 23234
 
-CMD ["monolisa"]
+CMD ["./monolisa"]

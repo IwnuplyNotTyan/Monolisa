@@ -2,5 +2,9 @@ services:
   monolisa:
     build:
       context: .
+    environment:
+      - MONOLISA_DIR=/app/gif
+    volumes:
+      - /app/gif:$HOME/files/prjkt/monolisa
     ports:
       - "23234:23234"

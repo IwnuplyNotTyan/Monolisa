@@ -23,7 +23,9 @@
 ```sh
 monolisa # Launch random gif from current dir
 
-monolisa ~/Pictures # Use custon folder
+monolisa ~/Pictures # Use custon folder, and can be selected file!
+# Or
+MONOLISA_DIR=$HOME/Pictures monolisa
 ```
 
 ---
