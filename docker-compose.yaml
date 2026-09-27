@@ -1,7 +1,7 @@
 services:
   monolisa:
     build:
-      context: .
+      context: https://github.com/iwnuplynottyan/monolisa.git#main
     #environment:
       #- MONOLISA_DIR=/app/gifs
       #- MONOLISA_PORT=23234
@@ -11,6 +11,6 @@ services:
       #- MONOLISA_SSH_KEYS=${MONOLISA_SSH_KEYS:-}
     volumes:
       - $HOME/Pictures:/app/gifs:ro
-      #- ./authorized_keys:/app/authorized_keys:ro
+      #- ./authorized_keys:/app/.ssh/authorized_keys:ro
     ports:
       - "23234:23234"
