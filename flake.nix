@@ -3,9 +3,10 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    nixpkgs-darwinx86.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
   };
 
-  outputs = { self, nixpkgs, ... }:
+  outputs = { self, nixpkgs, nixpkgs-darwinx86, ... }:
     let
       systems = [
         "x86_64-linux"
@@ -13,20 +14,25 @@
         "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
+      pkgsFor = system:
+        if system == "x86_64-darwin"
+        then nixpkgs-darwinx86.legacyPackages.${system}
+        else nixpkgs.legacyPackages.${system};
       version = "0.1.0";
       mkMonolisa = pkgs: tags: pkgs.buildGo127Module {
         pname = "monolisa";
         inherit version;
         src = self;
-        modules = ./gomod2nix.toml;
-        inherit tags;
+
+        # Updated automatically by nix/update-vendor-hash.sh.
+        # Run it locally after changing go.mod/go.sum:
+        #   ./nix/update-vendor-hash.sh
+        vendorHash = "sha256-KyJVujaWkeYOOHBhcS2G9k0E1tUVXRiDfZNWR99y/r8=";
 
         ldflags = [
           "-s"
           "-w"
         ];
-
-        vendorHash = "sha256-MEdSLAuG6es8mkKjsPdiNNSfA/6ojXR5NWynxkofJbQ=";
 
         meta = {
           description = "Screensaver without love :3";
@@ -38,15 +44,14 @@
     {
       packages = forAllSystems (system:
         let
-          pkgs = nixpkgs.legacyPackages.${system};
+          pkgs = pkgsFor system;
         in
         {
-          default = mkMonolisa pkgs [ ];
-          ssh = mkMonolisa pkgs [ "ssh" ];
+          default = mkCartridge pkgs;
         });
       devShells = forAllSystems (system:
         let
-          pkgs = nixpkgs.legacyPackages.${system};
+          pkgs = pkgsFor system;
         in
         {
           default = pkgs.mkShell {
@@ -54,6 +59,10 @@
               go_1_27
               gotools
               golangci-lint
+              govulncheck
+              gosec
+              actionlint
+              shellcheck
             ];
           };
         });
